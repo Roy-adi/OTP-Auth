@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  body {
+    @apply bg-cream text-ink antialiased;
+    min-height: 100vh;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-medium
+           px-6 py-3 rounded-xl transition-all duration-200 shadow-glow-sm
+           hover:shadow-glow disabled:opacity-50 disabled:cursor-not-allowed
+           disabled:shadow-none focus:outline-none focus:ring-2 focus:ring-brand-400
+           focus:ring-offset-2 focus:ring-offset-cream;
+  }
+
+  .btn-ghost {
+    @apply text-brand-600 hover:text-brand-700 font-medium transition-colors duration-200
+           underline underline-offset-2 focus:outline-none;
+  }
+
+  .input-field {
+    @apply w-full bg-white border border-ink/10 rounded-xl px-4 py-3
+           text-ink placeholder-ink/30 font-body
+           focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100
+           transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-card border border-ink/5;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-ink/60 mb-1.5;
+  }
+
+  .error-msg {
+    @apply text-red-500 text-xs mt-1 font-mono;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-ink/10 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-ink/20;
+}
+
+/* OTP digit input focus ring */
+.otp-input:focus {
+  border-color: theme('colors.brand.400');
+  box-shadow: 0 0 0 3px theme('colors.brand.100');
+}
+
+/* Page transitions */
+.page-enter {
+  animation: fadeUp 0.4s ease forwards;
+}
