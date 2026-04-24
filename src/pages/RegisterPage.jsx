@@ -18,6 +18,7 @@ import {
 import AuthLayout from '../components/AuthLayout'
 import { useAuth } from '../context/AuthContext'
 import { registerUser } from '../api/services'
+import { toast } from 'react-toastify'
 
 // ─── Validation rules ─────────────────────────────────────────────────────────
 
@@ -382,31 +383,41 @@ export default function RegisterPage() {
 
   // ── Submit ─────────────────────────────────────────────────────────────────
 
-  const onSubmit = async (formData) => {
-    setValue('_serverError', '')
-    clearErrors('_serverError')
-    try {
-      const fd = new FormData()
-      Object.entries(formData).forEach(([key, val]) => {
-        if (key === '_serverError' || val === undefined || val === null || val === '') return
-        fd.append(key, ['gst_no', 'pan_no'].includes(key) ? val.toUpperCase() : val)
-      })
-      if (fileRef.current?.files?.[0]) fd.append('profile_image', fileRef.current.files[0])
+const onSubmit = async (formData) => {
+  setValue('_serverError', '');
+  clearErrors('_serverError');
 
-      const data = await registerUser(fd)
-      const token = data?.result?.response?.token
+  try {
+    const fd = new FormData();
 
-      if (token) {
-        login(token, data?.result?.response?.data || null)
-        navigate('/')
-      } else {
-        setValue('_serverError', 'Registration succeeded but no token was returned.')
-      }
-    } catch (err) {
-      if (err?.field) setError(err.field, { type: 'server', message: err.message })
-      else setValue('_serverError', err.message || 'Something went wrong. Please try again.')
+    Object.entries(formData).forEach(([key, val]) => {
+      if (key === '_serverError' || val === undefined || val === null || val === '') return;
+      fd.append(key, ['gst_no', 'pan_no'].includes(key) ? val.toUpperCase() : val);
+    });
+
+    if (fileRef.current?.files?.[0]) {
+      fd.append('profile_image', fileRef.current.files[0]);
+    }
+
+    await registerUser(fd);
+    toast.success("Registration successful! Please login.");
+    toast.info("Redirecting to Login...");
+
+    // Redirect to login after successful registration
+    navigate('/login', {
+      state: { mobile: formData.mobile }, // optional
+    });
+
+  } catch (err) {
+    if (err?.field) {
+      setError(err.field, { type: 'server', message: err.message });
+      toast.error(err.message || "Something went wrong");
+    } else {
+      setValue('_serverError', err.message || 'Something went wrong. Please try again.');
+      toast.error(err.message || "Something went wrong");
     }
   }
+};
 
   const fp = { register, errors }
 

@@ -1,284 +1,187 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
 import { fetchPostDetails } from "../api/services";
-import Spinner from "../components/Spinner";
-import Alert from "../components/Alert";
-import { Shield, LogOut, Image, Building2 } from "lucide-react";
+import { LogOut, Sprout, AlertTriangle, RefreshCw, LayoutDashboard } from "lucide-react";
 
+import ProfileCard from "../components/ProfileCard";
+import CategorySection from "../components/CategorySection";
+import EmptyState from "../components/EmptyState";
+import { ProfileSkeleton, ProductGridSkeleton } from "../components/LoadingState";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function extractData(data) {
+  const response = data?.result?.response ?? data?.response ?? data?.data ?? null;
+  const relatedData = response?.related_data ?? {};
+  const categoryEntries = Object.entries(relatedData).map(([catId, products]) => ({
+    categoryId: Number(catId),
+    products,
+  }));
+  const totalProducts = categoryEntries.reduce((acc, { products }) => acc + products.length, 0);
+  return { profile: response, categoryEntries, totalProducts };
+}
+
+
+
+// ─── Sub-components ────────────────────────────────────────────────────────────
+function SectionLabel({ children, count }) {
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <span className="text-xs font-black uppercase tracking-[0.15em] text-slate-400">
+        {children}
+      </span>
+      {count != null && (
+        <span className="text-[10px] font-bold bg-slate-800 text-white px-2.5 py-0.5 rounded-full">
+          {count}
+        </span>
+      )}
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
+
+function ErrorCard({ message, onRetry }) {
+  return (
+    <div className="flex flex-col items-center gap-4 p-10 rounded-2xl bg-red-50 border border-red-100 text-center">
+      <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+        <AlertTriangle size={22} className="text-red-500" />
+      </div>
+      <div>
+        <p className="font-bold text-red-700 text-sm">{message || "Something went wrong."}</p>
+        <p className="text-xs text-red-400 mt-0.5">Please try again.</p>
+      </div>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-xl transition-colors"
+        >
+          <RefreshCw size={13} /> Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── HomePage ─────────────────────────────────────────────────────────────────
 export default function HomePage() {
   const { user, logout } = useAuth();
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["post-details"],
+    queryKey: ["post-details", user?.id],
     queryFn: () => fetchPostDetails(90344),
+    enabled: !!user?.id,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Normalize profile and products from various possible API shapes
-  const profile = data?.data?.user || data?.user || data?.data || user || null;
-  const products =
-    data?.data?.products ||
-    data?.products ||
-    data?.data?.posts ||
-    data?.posts ||
-    [];
+  const { profile, categoryEntries, totalProducts } = data
+    ? extractData(data)
+    : { profile: null, categoryEntries: [], totalProducts: 0 };
 
   return (
-    <div className="min-h-screen bg-cream">
-      {/* Navbar */}
-      <header className="bg-white border-b border-ink/5 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shadow-glow-sm">
-              <Shield className="w-4 h-4 text-white" />
+    <div className="min-h-screen bg-slate-50 font-sans">
+      {/* ── Navbar ───────────────────────────────── */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm">
+              <Sprout size={16} className="text-white" strokeWidth={2.5} />
             </div>
-            <span className="font-display font-bold text-ink text-lg">
-              OTP Auth
+            <span className="text-base font-black text-slate-800 tracking-tight">
+              KrishiVikas
             </span>
           </div>
 
-          <button
-            onClick={logout}
-            className="flex items-center gap-1.5 text-sm text-ink/50 hover:text-red-500 transition-colors font-medium"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </button>
+          {/* Right */}
+          <div className="flex items-center gap-3">
+            {user?.name && (
+              <span className="hidden sm:block text-xs font-semibold text-slate-400">
+                {user.name}
+              </span>
+            )}
+            <button
+              onClick={logout}
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-all duration-150"
+            >
+              <LogOut size={13} />
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 space-y-8 page-enter">
-        {/* Profile Card */}
+      {/* ── Hero Bar ─────────────────────────────── */}
+      <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+            <LayoutDashboard size={18} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-white font-black text-lg tracking-tight leading-none">
+              Dealer Dashboard
+            </h1>
+            <p className="text-emerald-100 text-xs mt-0.5 font-medium">
+              {isLoading
+                ? "Loading your data..."
+                : `${totalProducts} equipment listing${totalProducts !== 1 ? "s" : ""} across ${categoryEntries.length} categories`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Main Content ─────────────────────────── */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+        {/* Profile section */}
         <section>
-          <h2 className="text-xs font-semibold text-ink/30 uppercase tracking-widest mb-3">
-            Profile
-          </h2>
+          <SectionLabel>Dealer Profile</SectionLabel>
           {isLoading ? (
             <ProfileSkeleton />
           ) : isError ? (
-            <div className="card p-6 space-y-3">
-              <Alert
-                type="error"
-                message={error?.message || "Failed to load profile"}
-              />
-              <button
-                onClick={() => refetch()}
-                className="text-sm text-brand-600 hover:underline"
-              >
-                Try again
-              </button>
-            </div>
+            <ErrorCard message={error?.message} onRetry={refetch} />
           ) : (
-            <ProfileCard profile={profile} />
+            <ProfileCard />
           )}
         </section>
 
-        {/* Posts */}
+        {/* Products section */}
         <section>
-          <h2 className="text-xs font-semibold text-ink/30 uppercase tracking-widest mb-3">
-            {products.length > 0
-              ? `Products & Posts (${products.length})`
-              : "Products & Posts"}
-          </h2>
+          <SectionLabel count={!isLoading ? totalProducts : undefined}>
+            Equipment Listings
+          </SectionLabel>
 
           {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <ProductSkeleton key={i} />
-              ))}
-            </div>
-          ) : products.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {products.map((product, i) => (
-                <ProductCard key={product.id || i} product={product} />
-              ))}
-            </div>
+            <ProductGridSkeleton />
+          ) : isError ? (
+            <ErrorCard message={error?.message} onRetry={refetch} />
+          ) : categoryEntries.length === 0 ? (
+            <EmptyState onRetry={refetch} />
           ) : (
-            <EmptyState />
+            <div className="flex flex-col gap-10">
+              {categoryEntries.map(({ categoryId, products }) => (
+                <CategorySection
+                  key={categoryId}
+                  categoryId={categoryId}
+                  products={products}
+                />
+              ))}
+            </div>
           )}
         </section>
-
-        {/* Raw data for debugging */}
-        {/* {data && (
-          <section>
-            <details className="card p-4">
-              <summary className="text-xs text-ink/30 cursor-pointer hover:text-ink/50 font-mono select-none">
-                Raw API Response (dev)
-              </summary>
-              <pre className="mt-3 text-xs text-ink/60 overflow-auto max-h-64 font-mono leading-relaxed">
-                {JSON.stringify(data, null, 2)}
-              </pre>
-            </details>
-          </section>
-        )} */}
       </main>
-    </div>
-  );
-}
 
-function ProfileCard({ profile }) {
-  if (!profile) {
-    return (
-      <div className="card p-6 text-center text-ink/30 text-sm">
-        No profile data available.
-      </div>
-    );
-  }
-
-  const avatar =
-    profile.profile_image || profile.avatar || profile.image || null;
-
-  const fields = [
-    { label: "Name", value: profile.name || profile.full_name },
-    { label: "Mobile", value: profile.mobile || profile.phone },
-    { label: "Email", value: profile.email },
-    { label: "Company", value: profile.company_name },
-    { label: "GST No", value: profile.gst_no },
-    { label: "PAN No", value: profile.pan_no },
-    { label: "User Type", value: profile.user_type_id },
-    { label: "Location", value: profile.location_id || profile.location },
-  ].filter((f) => f.value);
-
-  return (
-    <div className="card p-6">
-      <div className="flex items-start gap-5">
-        {/* Avatar */}
-        <div className="shrink-0">
-          {avatar ? (
-            <img
-              src={avatar}
-              alt="Profile"
-              className="w-16 h-16 rounded-2xl object-cover border border-ink/10"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-700 flex items-center justify-center text-white text-2xl font-display font-bold shadow-glow-sm">
-              {(profile.name || profile.full_name || "U")[0].toUpperCase()}
+      {/* ── Footer ───────────────────────────────── */}
+      <footer className="border-t border-slate-200 mt-16 py-6 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+              <Sprout size={11} className="text-white" />
             </div>
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <h3 className="font-display text-xl font-bold text-ink mb-1">
-            {profile.name || profile.full_name || "User"}
-          </h3>
-          {(profile.mobile || profile.phone) && (
-            <p className="text-sm text-ink/50 font-mono mb-3">
-              +91 {profile.mobile || profile.phone}
-            </p>
-          )}
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-2">
-            {fields.map(({ label, value }) => (
-              <div key={label}>
-                <p className="text-[10px] uppercase tracking-widest text-ink/30 font-semibold">
-                  {label}
-                </p>
-                <p className="text-sm text-ink/80 font-body truncate">
-                  {value}
-                </p>
-              </div>
-            ))}
+            <span className="text-xs font-bold text-slate-400">KrishiVikas</span>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProductCard({ product }) {
-  const image =
-    product.image || product.product_image || product.thumbnail || null;
-  const title =
-    product.name || product.title || product.product_name || "Untitled";
-  const description =
-    product.description || product.details || product.body || "";
-  const price = product.price || product.mrp || product.amount || null;
-  const category = product.category || product.type || null;
-
-  return (
-    <div className="card overflow-hidden hover:shadow-card-hover transition-shadow duration-200 group">
-      {image ? (
-        <div className="h-40 overflow-hidden">
-          <img
-            src={image}
-            alt={title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        </div>
-      ) : (
-        <div className="h-40 bg-gradient-to-br from-brand-50 to-brand-100 flex items-center justify-center">
-          <Image className="w-10 h-10 text-brand-300" strokeWidth={1.5} />
-        </div>
-      )}
-
-      <div className="p-4">
-        {category && (
-          <span className="inline-block text-[10px] uppercase tracking-widest font-semibold text-brand-600 bg-brand-50 rounded-full px-2 py-0.5 mb-2">
-            {category}
+          <span className="text-xs text-slate-300">
+            © {new Date().getFullYear()} All rights reserved
           </span>
-        )}
-        <h4 className="font-semibold text-ink text-sm mb-1 line-clamp-1">
-          {title}
-        </h4>
-        {description && (
-          <p className="text-xs text-ink/40 line-clamp-2 leading-relaxed">
-            {description}
-          </p>
-        )}
-        {price && (
-          <p className="mt-2 text-sm font-semibold text-brand-600">
-            ₹{Number(price).toLocaleString("en-IN")}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ProfileSkeleton() {
-  return (
-    <div className="card p-6 animate-pulse">
-      <div className="flex items-start gap-5">
-        <div className="w-16 h-16 rounded-2xl bg-ink/5 shrink-0" />
-        <div className="flex-1 space-y-2">
-          <div className="h-5 w-40 bg-ink/5 rounded" />
-          <div className="h-3 w-24 bg-ink/5 rounded" />
-          <div className="grid grid-cols-3 gap-4 mt-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-8 bg-ink/5 rounded" />
-            ))}
-          </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ProductSkeleton() {
-  return (
-    <div className="card overflow-hidden animate-pulse">
-      <div className="h-40 bg-ink/5" />
-      <div className="p-4 space-y-2">
-        <div className="h-3 w-16 bg-ink/5 rounded-full" />
-        <div className="h-4 w-3/4 bg-ink/5 rounded" />
-        <div className="h-3 w-full bg-ink/5 rounded" />
-        <div className="h-3 w-2/3 bg-ink/5 rounded" />
-      </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="card p-12 flex flex-col items-center justify-center text-center">
-      <div className="w-16 h-16 rounded-2xl bg-brand-50 flex items-center justify-center mb-4">
-        <Building2 className="w-8 h-8 text-brand-300" strokeWidth={1.5} />
-      </div>
-      <h4 className="font-semibold text-ink/60 mb-1">No products yet</h4>
-      <p className="text-sm text-ink/30">
-        Products and posts will appear here.
-      </p>
+      </footer>
     </div>
   );
 }

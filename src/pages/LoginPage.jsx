@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import OTPInput from "../components/OTPInput";
 import Alert from "../components/Alert";
@@ -7,6 +7,7 @@ import Spinner from "../components/Spinner";
 import { useAuth } from "../context/AuthContext";
 import { sendOtp, loginUser } from "../api/services";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "react-toastify";
 
 const STEP = { MOBILE: "MOBILE", OTP: "OTP" };
 
@@ -22,6 +23,23 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.mobile) {
+      setMobile(location.state.mobile);
+    }
+  }, [location.state]);
+
+  const decodeOtp = (encodedOtp) => {
+    try {
+      return atob(encodedOtp); // Base64 decode
+    } catch (e) {
+      console.error("Invalid OTP encoding", e);
+      return "";
+    }
+  };
+
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setError("");
@@ -35,19 +53,25 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await sendOtp(mobile);
-      // Store OTP from response — field may vary
-      const otp =
-        data?.otp || data?.data?.otp || data?.OTP || data?.data?.OTP || "";
-      setServerOtp(String(otp));
+
+      const encodedOtp =
+        data?.result?.response?.otp || data?.otp || data?.data?.otp || "";
+
+      const decodedOtp = decodeOtp(encodedOtp);
+
+      setServerOtp(decodedOtp); // store decoded OTP
       setStep(STEP.OTP);
       setSuccess("OTP sent successfully!");
+      toast.success("OTP sent successfully!");
     } catch (err) {
       if (err.message.includes("503")) {
         setError(
           "503 Server is temporarily unavailable. Please try again later.",
         );
+        toast.error("503 Server is temporarily unavailable. Please try again later!");
       } else {
         setError(err.message);
+        toast.error(err.message || "Something went wrong");
       }
     } finally {
       setLoading(false);
@@ -78,6 +102,7 @@ export default function LoginPage() {
         // User exists
         const userData = data?.result?.response?.data || null;
         login(token, userData);
+        toast.success("Login successful!");
         navigate("/");
       } else {
         // User not registered
@@ -179,7 +204,7 @@ export default function LoginPage() {
           {/* Dev helper: show OTP from API if present */}
           {serverOtp && (
             <p className="text-xs text-center font-mono text-brand-500 bg-brand-50 rounded-lg py-1.5">
-              Dev mode OTP: <strong>{serverOtp}</strong>
+              Dev mode OTP, Remove in Prod: <strong>{serverOtp}</strong>
             </p>
           )}
 
